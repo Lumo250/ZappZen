@@ -377,12 +377,21 @@ function renderChannelList() {
       }
       li.setAttribute('data-url', url);
 
-      if (logo) {
-        const img = document.createElement('img');
-        img.src = logo;
-        img.className = 'logo';
-        li.appendChild(img);
-      }
+if (logo) {
+  const img = document.createElement('img');
+  let imgUrl = logo;
+
+  // Se inizia con http://, prova ad aggiornarlo a https://
+  if (imgUrl.startsWith('http://')) {
+    imgUrl = imgUrl.replace('http://', 'https://');
+  }
+
+  // Usa proxy HTTPS per evitare blocchi da Chrome
+  img.src = 'https://images.weserv.nl/?url=' + encodeURIComponent(imgUrl.replace(/^https?:\/\//, ''));
+
+  img.className = 'logo';
+  li.appendChild(img);
+}
 
       const nameSpan = document.createElement('span');
       nameSpan.textContent = name;

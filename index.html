@@ -432,7 +432,7 @@ function showChannelList() {
     window.hlsInstance.destroy();
     window.hlsInstance = null;
   }
-
+  renderChannelList(); // ✅ aggiunto per aggiornare evidenziazione
   document.getElementById('playerContainer').style.display = 'none';
   document.getElementById('channelListContainer').style.display = 'block';
 

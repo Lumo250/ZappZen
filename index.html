@@ -407,7 +407,7 @@ function filterValidChannels(channelList) {
   return channelList.filter(channel => 
     channel.url && 
     channel.url.startsWith('http') && 
-    !channel.name.match(/^[-_*]/)
+    !channel.name.match(/^[-_=*]/)
   );
 }
 

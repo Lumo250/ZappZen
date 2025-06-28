@@ -450,7 +450,7 @@ function renderGroupedChannelList(groups) {
     // Aggiungi i canali
     displayChannels.forEach(channel => {
       // Escludi elementi malformati (senza URL o con nomi che iniziano con caratteri speciali)
-      if (!channel.url || !channel.url.startsWith('http') || channel.name.match(/^[-_*]/)) {
+      if (!channel.url || !channel.url.startsWith('http') || channel.name.match(/^[-_=*]/)) {
         return;
       }
 

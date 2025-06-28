@@ -337,7 +337,7 @@ document.getElementById('resetListBtn').addEventListener('click', () => {
       displayChannels.forEach(({ name, logo, url }) => {
         const li = document.createElement('li');
         if (url === window.currentChannelUrl) {
-           li.style.background = '#333';
+           li.style.background = '#444';
         }
         li.setAttribute('data-url', url); // ✅ aggiunto
 

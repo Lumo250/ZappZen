@@ -1749,8 +1749,8 @@ https://tivusto.org/sh/canale66
 https://stream.cp.ets-sistemi.it:1936/canale74/canale74/chunklist_w1938752098.m3u8
 #EXTINF:-1 tvg-logo="http://odmsto.com/uploads/tv_image/sm/canale-97-sicilia.jpg" group-title="Sicilia",Canale 97 Sicilia
 https://5db313b643fd8.streamlock.net/canale97/canale97/playlist.m3u8
-#EXTINF:-1 tvg-id="EtnaEspressoChannel.it" tvg-logo="https://i.imgur.com/lSI5QgV.png" group-title="News",Etna Espresso Channel (720p)
-https://5db313b643fd8.streamlock.net/Etnachannelponte/Etnachannelponte/playlist.m3u8
+#EXTINF:-1 tvg-logo="http://odmsto.com/uploads/tv_image/sm/etna-espresso-channel.png" group-title="Sicilia",Etna Espresso Channel
+https://tivusto.org/sh/etnach
 #EXTINF:-1 tvg-logo="http://odmsto.com/uploads/tv_image/sm/global-tv.png" group-title="Sicilia",Global Tv
 https://eu1.vectromdigital.com:1936/tvrsicilia2/tvrsicilia2/playlist.m3u8
 #EXTINF:-1 tvg-logo="http://odmsto.com/uploads/tv_image/sm/globus-television.png" group-title="Sicilia",Globus Television

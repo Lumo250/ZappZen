@@ -43,6 +43,10 @@ http://mediapolis.rai.it/relinker/relinkerServlet.htm?cont=746899&output=7&force
 #EXTINF:-1 tvg-logo="http://odmsto.com/uploads/tv_image/sm/rai-premium-gdf9izugt6ty.png" group-title="Canali RAI",Rai Premium
 #EXTVLCOPT:http-user-agent=HbbTV/1.6.1
 http://mediapolis.rai.it/relinker/relinkerServlet.htm?cont=746992&output=7&forceUserAgent=raiplayappletv
+#EXTINF:-1 tvg-id="Rai3.it" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Rai_1_-_Logo_2016.svg/512px-Rai_1_-_Logo_2016.svg.png" group-title="Canali RAI",Rai 1 (720p)
+https://dash2.antik.sk/live/test_rai_uno_tizen/playlist.m3u8
+#EXTINF:-1 tvg-id="Rai3.it" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Rai_3_-_Logo_2016.svg/512px-Rai_3_-_Logo_2016.svg.png" group-title="Canali RAI",Rai 3 (720p)
+https://dash2.antik.sk/live/test_rai_tre_tizen/playlist.m3u8
 #EXTINF:-1 tvg-logo="http://odmsto.com/uploads/tv_image/sm/raiplay-1.png" group-title="Canali RAI",RaiPlay 1 
 https://tivusto.org/sh/raiplay1
 #EXTINF:-1 tvg-logo="http://odmsto.com/uploads/tv_image/sm/raiplay-2.png" group-title="Canali RAI",RaiPlay 2

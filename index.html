@@ -618,23 +618,31 @@ async function playStream(url) {
   let streamUrl = channel.url;
 
   // ⚠️ Se è un link RAI con mediapolis.rai.it, usiamo il proxy!
-  if (streamUrl.includes("mediapolis.rai.it")) {
-    const encoded = encodeURIComponent(streamUrl);
-    const proxyUrl = `https://rai-proxy-650s.onrender.com/resolve?url=${encoded}`;
-    try {
-      const res = await fetch(proxyUrl);
-      const data = await res.json();
-      if (data.streamUrl) {
-        streamUrl = data.streamUrl;
-      } else {
-        throw new Error("Stream RAI non disponibile");
-      }
-    } catch (e) {
-      alert("Errore durante la risoluzione dello stream RAI: " + e.message);
-      showChannelList();
-      return;
-    }
+try {
+  const encoded = encodeURIComponent(streamUrl);
+  const proxyUrl = `https://rai-proxy-650s.onrender.com/resolve?url=${encoded}`;
+  console.log("Chiamata proxy a:", proxyUrl);
+
+  const res = await fetch(proxyUrl);
+  if (!res.ok) {
+    throw new Error(`Proxy response status ${res.status}`);
   }
+
+  const data = await res.json();
+  console.log("Risposta proxy:", data);
+
+  if (data && typeof data.streamUrl === "string" && data.streamUrl.length > 0) {
+    streamUrl = data.streamUrl;
+    console.log("Stream URL aggiornato a:", streamUrl);
+  } else {
+    throw new Error("Stream RAI non disponibile o risposta proxy malformata");
+  }
+} catch (e) {
+  alert("Errore durante la risoluzione dello stream RAI: " + e.message);
+  showChannelList();
+  return;
+}
+
 
   if (Hls.isSupported()) {
     if (window.hlsInstance) window.hlsInstance.destroy();

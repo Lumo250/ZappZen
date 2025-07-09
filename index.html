@@ -64,15 +64,26 @@ let licenseKey = localStorage.getItem("zappzen_license");
       return;
     }
 
-    const savedLocalList = localStorage.getItem("zappzen_local_playlist");
-    if (savedLocalList) {
-      parseM3U(savedLocalList);
-      showingFavorites = false;
-      updateButtons();
-    } else {
-      loadRemoteM3U('https://lumo250.github.io/ZappZen/tivustream_list.m3u');
-    }
-  });
+
+ // Carica tutte le preferenze in una volta
+  const preferences = loadViewModePreference();
+  currentViewMode = preferences.mode;
+  showingFavorites = preferences.showFav;
+
+  // Resto del codice rimane uguale...
+  const savedLocalList = localStorage.getItem("zappzen_local_playlist");
+  if (savedLocalList) {
+    await parseM3U(savedLocalList);
+  } else {
+    await loadRemoteM3U('https://lumo250.github.io/ZappZen/tivustream_list.m3u');
+  }
+
+  updateButtons();
+  setupSwipeHandlers();
+ // renderGroupedChannelList(groupedChannels);
+});
+
+
 </script>
 
 
@@ -191,6 +202,7 @@ li span {
     }
     #channelListContainer {
       display: block;
+    overflow-x: hidden !important; /* Doppia sicurezza */
     }
 
 .active-channel {
@@ -244,12 +256,6 @@ li span {
 }
 
 /* Miglioramenti generali */
-#channelList {
-  max-height: 70vh;
-  overflow-y: auto;
-  border: 1px solid #444;
-  border-radius: 5px;
-}
 
 
 html, body {
@@ -297,6 +303,164 @@ html, body {
 
 
 
+/* Modalità griglia */
+#channelList.grid-view {
+  display: block; /* Cambiato da grid a block */
+  padding: 10px;
+  transform: none !important;
+  overflow-x: hidden; /* Blocca lo scrolling orizzontale */
+  padding: 0 !important; /* Rimuove ogni spaziatura interna */
+}
+
+
+#channelList.grid-view .group-header {
+  display: block;
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+
+
+#channelList.grid-view .channel-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 5px;
+  transition: transform 0.2s;
+  position: relative;  
+  overflow: hidden;
+  transition: none; /* Disabilita le transizioni sulle singole tile */
+ height: 110px; /* o qualsiasi valore uniforme adatto */
+  box-sizing: border-box;
+}
+
+#channelList.grid-view .channel-tile:hover {
+  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+#channelList.grid-view .channel-icon {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  margin-bottom: 5px;
+  background: #222;
+  border-radius: 10px;
+  padding: 5px;
+}
+
+
+#channelList.grid-view .group-content[style*="display: none"] {
+  display: none !important;
+}
+
+
+
+#channelList.grid-view .group-content {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+  margin-bottom: 15px;
+  margin: 0;
+  padding: 0 5px; /* Piccolo padding solo ai lati */
+}
+
+#channelList.grid-view .group-content .tiles-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+
+#channelList.grid-view li:not(.group-header) {
+  display: none;
+}
+
+/* Animazione cambio vista */
+#channelList {
+  transition: none !important;
+  will-change: transform, opacity;
+  max-height: 70vh;
+  overflow-y: auto;
+  border: 1px solid #444;
+  border-radius: 5px;
+}
+
+
+/* Aggiungi alla fine del tuo stile esistente */
+#channelList.grid-view .group-title {
+  justify-content: flex-start; /* Allinea tutto a sinistra */
+}
+
+#channelList.grid-view .group-toggle {
+  margin-left: 0; /* Spazio dopo il nome */
+  margin-right: auto; /* Spinge tutto il resto a destra */
+}
+
+.active-btn {
+  background-color: #555 !important;
+  font-weight: bold;
+}
+
+
+/* Aggiungi questi stili alla sezione CSS esistente */
+#channelList.list-view {
+  display: block;
+}
+
+
+.list-view-content {
+  display: none;
+}
+
+.grid-view-content {
+  display: none;
+}
+
+.list-view .list-view-content {
+  display: block;
+}
+
+.grid-view .grid-view-content {
+  display: grid;
+}
+
+/* Mantieni tutti gli altri stili esistenti per list-view e grid-view */
+
+
+/* Aggiungi questi stili alla sezione CSS esistente */
+.all-view {
+  display: block;
+}
+
+.favorites-view {
+  display: none;
+}
+
+.showing-favorites .all-view {
+  display: none;
+}
+
+.showing-favorites .favorites-view {
+  display: block;
+}
+
+/* Mantieni gli stili esistenti per list-view e grid-view */
+#channelList.list-view .list-view-content {
+  display: block;
+}
+
+#channelList.grid-view .grid-view-content {
+  display: grid;
+}
+
+.list-view-content, .grid-view-content {
+  display: none;
+}
 
   </style>
 </head>
@@ -368,6 +532,130 @@ let draggedItemOriginalGroup = null;
 let draggedItemOriginalIndex = null;
 let draggedItemOriginalUrl = null;
 
+// Aggiungi dopo le altre variabili globali (circa riga 150)
+let currentViewMode = 'list'; // 'list' o 'grid'
+let touchStartX = 0;
+let touchEndX = 0;
+let mouseDownX = 0;
+let mouseUpX = 0;
+
+
+// Funzioni helper per creare gli elementi (aggiungile nello script)
+function createGroupHeader(group, groupIndex, isGrid) {
+  const groupHeader = document.createElement('li');
+  groupHeader.className = 'group-header';
+  groupHeader.setAttribute('data-group-index', groupIndex);
+  groupHeader.innerHTML = `
+    <div class="group-title">
+      ${group.logo ? `<img src="${group.logo}" class="group-logo">` : ''}
+      <span>${group.name}</span>
+      <span class="group-toggle">-</span>
+    </div>
+  `;
+
+  groupHeader.addEventListener('click', (e) => {
+    if (!e.target.classList.contains('favorite-star')) {
+      const groupContent = groupHeader.nextElementSibling;
+      const collapsed = groupContent.style.display === 'none';
+      groupContent.style.display = collapsed ? (isGrid ? 'grid' : 'block') : 'none';
+      groupHeader.querySelector('.group-toggle').textContent = collapsed ? '-' : '+';
+      groupCollapseState[group.name] = !collapsed;
+    }
+  });
+
+  return groupHeader;
+}
+
+function createListItem(channel, groupIndex, channelIndex) {
+  const li = document.createElement('li');
+  li.setAttribute('data-url', channel.url);
+  li.setAttribute('data-name', channel.name.toLowerCase());
+  li.setAttribute('draggable', 'true');
+  li.classList.add('draggable');
+  li.setAttribute('data-channel-index', channelIndex);
+  li.setAttribute('data-group-index', groupIndex);
+  li.setAttribute('data-key', getChannelKey(channel));
+
+  if (getChannelKey(channel) === window.currentChannelUrl) {
+    li.classList.add('active-channel');
+  }
+
+  // Aggiungi gestori eventi drag & drop
+  li.addEventListener('dragstart', handleDragStart);
+  li.addEventListener('dragend', handleDragEnd);
+  li.addEventListener('dragover', handleDragOver);
+  li.addEventListener('dragenter', handleDragEnter);
+  li.addEventListener('dragleave', handleDragLeave);
+  li.addEventListener('drop', handleDrop);
+
+  if (channel.logo) {
+    const img = document.createElement('img');
+    img.src = channel.logo;
+    img.className = 'logo';
+    img.draggable = false;
+    li.appendChild(img);
+  }
+
+  const nameSpan = document.createElement('span');
+  nameSpan.textContent = channel.name;
+  nameSpan.style.flexGrow = '1';
+  nameSpan.style.userSelect = 'none';
+  nameSpan.style.cursor = 'pointer';
+  nameSpan.onclick = () => playStream(channel);
+  li.appendChild(nameSpan);
+
+  const star = document.createElement('span');
+  star.className = 'favorite-star ' + (getFavorites().includes(getChannelKey(channel)) ? '' : 'inactive');
+  star.innerHTML = '★';
+  star.title = getFavorites().includes(getChannelKey(channel)) ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti';
+  star.onclick = (e) => {
+    e.stopPropagation();
+    toggleFavorite(channel, star);
+  };
+  star.draggable = false;
+  li.appendChild(star);
+
+  return li;
+}
+
+function createGridTile(channel) {
+  const tile = document.createElement('div');
+  tile.className = 'channel-tile';
+  tile.setAttribute('data-url', channel.url);
+  tile.setAttribute('data-name', channel.name.toLowerCase());
+  tile.setAttribute('data-key', getChannelKey(channel));
+
+  const img = document.createElement('img');
+  img.className = 'channel-icon';
+  img.src = channel.logo || 'favicon-32x32.png';
+  img.onerror = () => { img.src = 'favicon-32x32.png'; };
+  tile.appendChild(img);
+
+  const name = document.createElement('div');
+  name.className = 'channel-name';
+  name.textContent = abbreviateName(channel.name);
+  tile.appendChild(name);
+
+  if (!(currentViewMode === 'grid' && showingFavorites)) {
+    const star = document.createElement('div');
+    star.className = 'favorite-star ' + (getFavorites().includes(getChannelKey(channel)) ? '' : 'inactive');
+    star.innerHTML = '★';
+    star.style.position = 'absolute';
+    star.style.top = '5px';
+    star.style.right = '5px';
+    star.style.fontSize = '1rem';
+    star.onclick = (e) => {
+      e.stopPropagation();
+      toggleFavorite(channel, star);
+    };
+    tile.appendChild(star);
+  }
+
+  tile.addEventListener('click', () => playStream(channel));
+  return tile;
+}
+
+
    document.getElementById('fileInput').addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -391,12 +679,14 @@ document.getElementById('logoButton').addEventListener('click', () => {
 
     document.getElementById('showAllBtn').addEventListener('click', () => {
       showingFavorites = false;
+      saveViewModePreference(currentViewMode); // Salva lo stato aggiornato
       renderGroupedChannelList(groupedChannels);
       updateButtons();
     });
 
     document.getElementById('showFavBtn').addEventListener('click', () => {
       showingFavorites = true;
+      saveViewModePreference(currentViewMode); // Salva lo stato aggiornato
       renderGroupedChannelList(groupedChannels);
       updateButtons();
     });
@@ -410,20 +700,25 @@ document.getElementById('resetListBtn').addEventListener('click', () => {
 
 document.getElementById('searchInput').addEventListener('input', () => {
   const search = document.getElementById('searchInput').value.toLowerCase();
+  const isGrid = currentViewMode === 'grid';
 
-  document.querySelectorAll('#channelList li:not(.group-header)').forEach(li => {
-    const name = li.getAttribute('data-name') || '';
-    li.style.display = name.includes(search) ? '' : 'none';
-  });
+  document.querySelectorAll('#channelList .group-content').forEach(content => {
+    const children = content.children;
+    let matchFound = false;
 
-  document.querySelectorAll('#channelList .group-header').forEach(header => {
-    const content = header.nextElementSibling;
-    const visibleItems = content.querySelectorAll('li:not([style*="display: none"])');
-    const groupVisible = visibleItems.length > 0;
-    header.style.display = groupVisible ? '' : 'none';
-    content.style.display = groupVisible ? '' : 'none';
+    for (const child of children) {
+      const name = child.getAttribute('data-name') || '';
+      const isMatch = name.includes(search);
+      child.style.display = isMatch ? (isGrid ? 'flex' : '') : 'none';
+      if (isMatch) matchFound = true;
+    }
+
+    const groupHeader = content.previousElementSibling;
+    groupHeader.style.display = matchFound ? '' : 'none';
+    content.style.display = matchFound ? (isGrid ? 'grid' : 'block') : 'none';
   });
 });
+
 
 
     async function loadRemoteM3U(url) {
@@ -432,7 +727,7 @@ document.getElementById('searchInput').addEventListener('input', () => {
         const text = await res.text();
 localStorage.setItem('zappzen_loaded_filename', url.split('/').pop());
         parseM3U(text);
-        showingFavorites = false;
+        
         updateButtons();
       } catch (e) {
         alert('Failed to load remote playlist: ' + e.message);
@@ -441,27 +736,23 @@ localStorage.setItem('zappzen_loaded_filename', url.split('/').pop());
 
 
 function updateButtons() {
-
-    
-    // Abilita/disabilita i bottoni di navigazione in base alla lista corrente
-    const hasChannels = channels.length > 0;
-    document.getElementById('showAllBtn').disabled = !hasChannels || !showingFavorites;
-    document.getElementById('showFavBtn').disabled = !hasChannels || showingFavorites;
-    document.getElementById('searchInput').disabled = !hasChannels;
-    document.getElementById('resetListBtn').disabled = !hasChannels;
-  
-const allBtn = document.getElementById('showAllBtn');
+  const hasChannels = channels.length > 0;
+  const allBtn = document.getElementById('showAllBtn');
   const favBtn = document.getElementById('showFavBtn');
 
-  if (showingFavorites) {
-    allBtn.style.opacity = '0.6';
-    favBtn.style.opacity = '1';
-  } else {
-    allBtn.style.opacity = '1';
-    favBtn.style.opacity = '0.6';
+  allBtn.disabled = !hasChannels || !showingFavorites;
+  favBtn.disabled = !hasChannels || showingFavorites;
+
+  // Aggiorna lo stile visivo
+  allBtn.style.opacity = showingFavorites ? '0.6' : '1';
+  favBtn.style.opacity = showingFavorites ? '1' : '0.6';
+  
+  // Aggiorna lo stato attivo
+  if (hasChannels) {
+    allBtn.classList.toggle('active-btn', !showingFavorites);
+    favBtn.classList.toggle('active-btn', showingFavorites);
   }
 }
-
 
 
 
@@ -570,150 +861,102 @@ function filterValidChannels(channelList) {
 
 
 // Modifica la funzione renderGroupedChannelList per aggiungere gli attributi drag & drop
+
+
 function renderGroupedChannelList(groups) {
   const list = document.getElementById('channelList');
+  list.className = currentViewMode + '-view';
+  
+  // Crea la struttura completa se non esiste
+  if (!list.querySelector('.all-view')) {
+    list.innerHTML = `
+      <div class="all-view">
+        <div class="list-view-content"></div>
+        <div class="grid-view-content"></div>
+      </div>
+      <div class="favorites-view">
+        <div class="list-view-content"></div>
+        <div class="grid-view-content"></div>
+      </div>
+    `;
+  }
 
-  // Mappa dei gruppi esistenti nel DOM
-  const existingGroups = new Map();
-  const existingGroupHeaders = list.querySelectorAll('.group-header');
-  existingGroupHeaders.forEach(header => {
-    const groupIndex = header.getAttribute('data-group-index');
-    const groupName = header.querySelector('.group-title span')?.textContent;
-    if (groupName) {
-      existingGroups.set(groupName, {
-        header,
-        content: header.nextElementSibling,
-        isExpanded: header.querySelector('.group-toggle')?.textContent !== '+'
-      });
-    }
-  });
+  // Ottieni i contenitori
+  const allListView = list.querySelector('.all-view .list-view-content');
+  const allGridView = list.querySelector('.all-view .grid-view-content');
+  const favListView = list.querySelector('.favorites-view .list-view-content');
+  const favGridView = list.querySelector('.favorites-view .grid-view-content');
+  
+  // Pulisci tutti i contenitori
+  allListView.innerHTML = '';
+  allGridView.innerHTML = '';
+  favListView.innerHTML = '';
+  favGridView.innerHTML = '';
 
-  const newList = document.createDocumentFragment();
+  // Aggiorna la classe principale per mostrare la vista corretta
+  list.classList.toggle('showing-favorites', showingFavorites);
 
-  groups.forEach((group, groupIndex) => {
-const displayChannels = group.channels.filter(ch =>
-  !showingFavorites || isFavorite(ch)
-);
-
+  // Funzione helper per generare il contenuto di un gruppo
+  const renderGroup = (group, groupIndex, isFavorites) => {
+    const displayChannels = isFavorites 
+      ? group.channels.filter(ch => isFavorite(ch))
+      : group.channels;
 
     if (displayChannels.length === 0) return;
 
-    // Riutilizza nodi esistenti se possibile
-    const existing = existingGroups.get(group.name);
-    let groupHeader, groupContent;
+    // Crea elementi per tutte le viste
+    const groupHeaderList = createGroupHeader(group, groupIndex, false);
+    const groupContentList = document.createElement('div');
+    groupContentList.className = 'group-content';
+    groupContentList.setAttribute('data-group-index', groupIndex);
 
-    if (existing) {
-      groupHeader = existing.header;
-      groupContent = existing.content;
+    const groupHeaderGrid = createGroupHeader(group, groupIndex, true);
+    const groupContentGrid = document.createElement('div');
+    groupContentGrid.className = 'group-content';
+    groupContentGrid.setAttribute('data-group-index', groupIndex);
 
-      // Rimuovi i figli esistenti dal content per aggiornarli
-      groupContent.innerHTML = '';
-    } else {
-      // Crea da zero se non esiste
-      groupHeader = document.createElement('li');
-      groupHeader.className = 'group-header';
-      groupHeader.setAttribute('data-group-index', groupIndex);
-      groupHeader.innerHTML = `
-        <div class="group-title">
-          ${group.logo ? `<img src="${group.logo}" class="group-logo">` : ''}
-          <span>${group.name}</span>
-          <span class="group-toggle">-</span>
-        </div>
-      `;
+    const isCollapsed = groupCollapseState[group.name] === true;
+    const displayStyle = isCollapsed ? 'none' : (currentViewMode === 'grid' ? 'grid' : 'block');
 
-      groupContent = document.createElement('div');
-      groupContent.className = 'group-content';
-      groupContent.setAttribute('data-group-index', groupIndex);
+    groupHeaderList.querySelector('.group-toggle').textContent = isCollapsed ? '+' : '-';
+    groupContentList.style.display = displayStyle;
 
-const isCollapsed = groupCollapseState[group.name] === true;
-groupContent.style.display = isCollapsed ? 'none' : 'block';
-groupHeader.querySelector('.group-toggle').textContent = isCollapsed ? '+' : '-';
+    groupHeaderGrid.querySelector('.group-toggle').textContent = isCollapsed ? '+' : '-';
+    groupContentGrid.style.display = displayStyle;
 
-      // Aggiungi eventi al nuovo header
-      groupHeader.addEventListener('dragover', handleGroupDragOver);
-      groupHeader.addEventListener('dragenter', handleGroupDragEnter);
-      groupHeader.addEventListener('dragleave', handleGroupDragLeave);
-      groupHeader.addEventListener('drop', handleGroupDrop);
-groupHeader.addEventListener('click', (e) => {
-  if (!e.target.classList.contains('favorite-star')) {
-    const collapsed = groupContent.style.display === 'none';
-    groupContent.style.display = collapsed ? 'block' : 'none';
-    groupHeader.querySelector('.group-toggle').textContent = collapsed ? '-' : '+';
-    groupCollapseState[group.name] = !collapsed; // salva lo stato corrente
-  }
-});
-
-    }
-
-    // Ricrea i canali all'interno del gruppo
+    // Aggiungi canali a tutte le viste
     displayChannels.forEach((channel, channelIndex) => {
-      const li = document.createElement('li');
-      li.setAttribute('data-url', channel.url);
-      li.setAttribute('data-name', channel.name.toLowerCase());
-      li.setAttribute('draggable', 'true');
-      li.classList.add('draggable');
-      li.setAttribute('data-channel-index', channelIndex);
-      li.setAttribute('data-group-index', groupIndex);
-      li.setAttribute('data-key', getChannelKey(channel));
+      // Vista lista
+      const li = createListItem(channel, groupIndex, channelIndex);
+      groupContentList.appendChild(li);
 
-
-      if (getChannelKey(channel) === window.currentChannelUrl) {
-  li.classList.add('active-channel');
-}
-
-      li.addEventListener('dragstart', handleDragStart);
-      li.addEventListener('dragend', handleDragEnd);
-      li.addEventListener('dragover', handleDragOver);
-      li.addEventListener('dragenter', handleDragEnter);
-      li.addEventListener('dragleave', handleDragLeave);
-      li.addEventListener('drop', handleDrop);
-
-      if (channel.logo) {
-        const img = document.createElement('img');
-        img.src = channel.logo;
-        img.className = 'logo';
-        img.draggable = false;
-        li.appendChild(img);
-      }
-
-      const nameSpan = document.createElement('span');
-      nameSpan.textContent = channel.name;
-      nameSpan.style.flexGrow = '1';
-      nameSpan.style.userSelect = 'none';
-      nameSpan.style.cursor = 'pointer';
-      nameSpan.onclick = () => playStream(channel);
-      li.appendChild(nameSpan);
-
-      const star = document.createElement('span');
-      star.className = 'favorite-star ' + (isFavorite(channel) ? '' : 'inactive'); 
-      star.innerHTML = '★';
-      star.title = isFavorite(channel.url) ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti';
-    
-star.onclick = (e) => {
-  e.stopPropagation();
-  toggleFavorite(channel, star);
-};
-
-      star.draggable = false;
-      li.appendChild(star);
-
-      groupContent.appendChild(li);
+      // Vista grid
+      const tile = createGridTile(channel);
+      groupContentGrid.appendChild(tile);
     });
 
-    // Mantieni lo stato di espansione se esistente
-    if (existing) {
-      groupContent.style.display = existing.isExpanded ? 'block' : 'none';
-      groupHeader.querySelector('.group-toggle').textContent = existing.isExpanded ? '-' : '+';
+    // Aggiungi agli elementi padre corretti
+    if (isFavorites) {
+      favListView.appendChild(groupHeaderList);
+      favListView.appendChild(groupContentList);
+      favGridView.appendChild(groupHeaderGrid);
+      favGridView.appendChild(groupContentGrid);
+    } else {
+      allListView.appendChild(groupHeaderList);
+      allListView.appendChild(groupContentList);
+      allGridView.appendChild(groupHeaderGrid);
+      allGridView.appendChild(groupContentGrid);
     }
+  };
 
-    newList.appendChild(groupHeader);
-    newList.appendChild(groupContent);
+  // Renderizza tutti i gruppi per entrambe le viste
+  groups.forEach((group, groupIndex) => {
+    renderGroup(group, groupIndex, false);  // Vista "Tutti"
+    renderGroup(group, groupIndex, true);   // Vista "Preferiti"
   });
-
-  // Rimpiazza il contenuto solo se è cambiato
-  list.innerHTML = '';
-  list.appendChild(newList);
 }
+
+
 
 
 // Funzioni per gestire il drag & drop
@@ -842,6 +1085,20 @@ function moveChannel(fromGroupIndex, fromChannelIndex, toGroupIndex, toChannelIn
   // Aggiorna il gruppo del canale
   movedChannel.group = toGroup.name;
   
+// Se il canale è tra i preferiti, aggiorna la sua chiave
+const oldKey = `${movedChannel.name}@@${movedChannel.url}@@${fromGroup.name}`;
+const newKey = getChannelKey(movedChannel);
+const favs = getFavorites();
+const favIndex = favs.indexOf(oldKey);
+
+if (favIndex !== -1) {
+  favs[favIndex] = newKey;
+  saveFavorites(favs);
+}
+
+
+
+
   // Inserisci il canale nel nuovo gruppo
   toGroup.channels.splice(toChannelIndex, 0, movedChannel);
 }
@@ -925,12 +1182,14 @@ function toggleFavorite(channel, starElement) {
   }
 
   saveFavorites(fav);
+  
+  // Aggiorna solo gli elementi interessati invece di fare un render completo
   if (showingFavorites) {
-    renderGroupedChannelList(groupedChannels);
-    updateButtons();
+    const list = document.getElementById('channelList');
+    list.classList.toggle('showing-favorites', showingFavorites);
   }
+  updateButtons();
 }
-
  
 
 
@@ -1125,7 +1384,6 @@ function saveChannelName() {
   if (favIndex !== -1) {
     favs[favIndex] = newKey; // Sostituisce la chiave vecchia con la nuova
     saveFavorites(favs);
-
  
   }
 
@@ -1138,6 +1396,86 @@ function saveChannelName() {
   renderGroupedChannelList(groupedChannels);
 }
 
+
+
+// Aggiungi dopo l'ultima funzione esistente (prima dei listener finali)
+function setupSwipeHandlers() {
+  const container = document.getElementById('channelListContainer');
+  
+  // Eventi touch per mobile
+  container.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+  }, { passive: true });
+  
+  container.addEventListener('touchend', (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipe();
+  }, { passive: true });
+  
+  // Eventi mouse per desktop
+  container.addEventListener('mousedown', (e) => {
+    mouseDownX = e.clientX;
+  });
+  
+  container.addEventListener('mouseup', (e) => {
+    mouseUpX = e.clientX;
+    handleMouseSwipe();
+  });
+}
+
+function handleSwipe() {
+  const diff = touchEndX - touchStartX;
+  processSwipe(diff);
+}
+
+function handleMouseSwipe() {
+  const diff = mouseUpX - mouseDownX;
+  processSwipe(diff);
+}
+
+function processSwipe(diff) {
+  if (Math.abs(diff) > 150) { // Soglia minima
+    if (diff > 0 && currentViewMode === 'grid') {
+      switchViewMode('list');
+    } else if (diff < 0 && currentViewMode === 'list') {
+      switchViewMode('grid');
+    }
+  }
+}
+
+function saveViewModePreference(mode) {
+  localStorage.setItem('zappzen_view_mode', mode);
+  localStorage.setItem('zappzen_show_favorites', showingFavorites); // Aggiungi questa riga
+}
+
+function loadViewModePreference() {
+  // Carica entrambe le preferenze
+  const mode = localStorage.getItem('zappzen_view_mode') || 'list';
+  const showFav = localStorage.getItem('zappzen_show_favorites') === 'true';
+  
+  return { 
+    mode, 
+    showFav 
+  };
+}
+
+function switchViewMode(mode) {
+  if (currentViewMode === mode) return;
+  
+  currentViewMode = mode;
+  saveViewModePreference(mode);
+  
+  const list = document.getElementById('channelList');
+  list.className = mode + '-view';
+}
+
+
+function abbreviateName(name) {
+  if (name.length > 12) {
+    return name.substring(0, 10) + '...';
+  }
+  return name;
+}
 
   </script>
 
